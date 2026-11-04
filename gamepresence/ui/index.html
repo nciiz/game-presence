@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GamePresence</title>
+<style>
+:root{
+  --night:#13122b; --panel:#1b1a3a; --raised:#26254d; --line:#34335f;
+  --text:#edebff; --muted:#a09ec9; --accent:#5865f2; --accent-hi:#7480ff;
+  --live:#2fd27a; --danger:#ff5a6a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--night);color:var(--text);
+  font:14px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,"Noto Sans Arabic","Noto Sans","DejaVu Sans",sans-serif;
+  display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{-webkit-user-select:text;user-select:text}
+:focus-visible{outline:2px solid var(--accent-hi);outline-offset:3px;border-radius:8px}
+svg{display:block;flex:none}
+
+html[dir=rtl] .name,html[dir=rtl] .dname{text-align:right}
+html[dir=ltr] .name,html[dir=ltr] .dname{text-align:left}
+.name,.dname{unicode-bidi:plaintext}
+/* top bar */
+.bar{display:flex;align-items:center;gap:18px;padding:14px 28px;border-bottom:1px solid var(--line);flex:none}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.01em;direction:ltr}
+.logo{width:32px;height:32px;border-radius:10px;background:var(--accent);display:grid;place-items:center;color:#fff}
+.tabs{display:flex;gap:4px;background:var(--panel);padding:4px;border-radius:14px}
+.tabs button{padding:8px 16px;border-radius:10px;font-weight:600;color:var(--muted);white-space:nowrap}
+.tabs button.on{background:var(--raised);color:var(--text)}
+.search{flex:1;max-width:480px;margin-inline-start:auto;display:flex;align-items:center;gap:8px;height:42px;padding-inline:12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;color:var(--muted)}
+.search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(88,101,242,.25)}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text);font:inherit}
+.search input::-webkit-search-cancel-button{display:none}
+.icon-btn{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;color:var(--muted);background:var(--panel);border:1px solid var(--line)}
+.icon-btn:hover{color:var(--text);border-color:var(--accent)}
+
+/* library */
+main{flex:1;overflow-y:auto;padding:22px 28px 160px}
+main::-webkit-scrollbar{width:10px}
+main::-webkit-scrollbar-thumb{background:var(--raised);border-radius:10px;border:2px solid var(--night)}
+.count{color:var(--muted);font-size:13px;margin-bottom:20px;min-height:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:28px 22px}
+.grid.square{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:26px 20px}
+.game{display:block;width:100%;text-align:start;position:relative;align-self:start}
+.art{position:relative;aspect-ratio:2/3;border-radius:14px;overflow:hidden;background:var(--panel)}
+.square .art{aspect-ratio:1;border-radius:24%}
+.art img{width:100%;height:100%;object-fit:cover;display:block;transition:filter .15s}
+.art.fallback{background:linear-gradient(160deg,var(--raised),var(--panel))}
+.art.fallback img{object-fit:contain;padding:24%}
+.art.mono{display:grid;place-items:center;font-size:44px;font-weight:700;background:hsl(var(--h) 38% 26%);color:hsl(var(--h) 80% 86%)}
+.game:hover .art img,.game:focus-visible .art img{filter:brightness(.6)}
+.play{position:absolute;inset:0;margin:auto;width:54px;height:54px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;opacity:0;transform:scale(.8);transition:opacity .15s,transform .15s}
+.game:hover .play,.game:focus-visible .play{opacity:1;transform:none}
+.play .i-stop{display:none}
+.game.live .play{background:var(--danger);color:#2a0409}
+.game.live .play .i-play{display:none}
+.game.live .play .i-stop{display:block}
+.name{margin-top:10px;font-weight:600;font-size:13.5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sub{font-size:12px;color:var(--muted);margin-top:2px;min-height:16px}
+.badge{position:absolute;top:8px;inset-inline-end:8px;height:22px;min-width:22px;padding-inline:7px;border-radius:99px;display:grid;place-items:center;font-size:11px;font-weight:700;background:rgba(19,18,43,.78);color:var(--muted);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.badge.ok{background:var(--live);color:#06301a;padding:0}
+.tag-live{position:absolute;bottom:8px;inset-inline-start:8px;background:var(--live);color:#06301a;font-weight:700;font-size:11.5px;padding:3px 10px;border-radius:99px;display:none}
+.game.live .tag-live{display:block}
+.game.live .art{box-shadow:0 0 0 3px var(--night),0 0 0 6px var(--live)}
+.game.busy .art img{filter:brightness(.45)}
+.game.busy .art::after{content:"";position:absolute;inset:0;margin:auto;width:30px;height:30px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+.skel .art{background:linear-gradient(100deg,var(--panel) 30%,var(--raised) 50%,var(--panel) 70%);background-size:200% 100%;animation:sh 1.3s linear infinite}
+.skel .name{height:12px;width:70%;background:var(--panel);border-radius:6px}
+@keyframes sh{to{background-position:-200% 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:90px 20px}
+.empty .ico{width:68px;height:68px;border-radius:22px;background:var(--panel);display:grid;place-items:center;color:var(--accent-hi);margin-bottom:8px}
+.empty h2{font-size:20px;font-weight:700}
+.empty p{color:var(--muted);max-width:380px}
+.empty .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+[hidden]{display:none!important}
+
+/* buttons */
+.btn{height:42px;padding:0 20px;border-radius:12px;background:var(--accent);color:#fff;font-weight:650;white-space:nowrap}
+.btn:hover{background:var(--accent-hi)}
+.btn.ghost{background:var(--raised)}
+.btn.ghost:hover{background:var(--line)}
+.btn.danger{background:var(--danger);color:#2a0409}
+.btn:disabled{opacity:.6;cursor:default}
+
+/* now playing dock */
+.dock{position:fixed;bottom:22px;left:50%;width:min(660px,calc(100% - 36px));transform:translate(-50%,140%);opacity:0;
+  transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .3s;z-index:10;
+  display:flex;align-items:center;gap:14px;padding:10px;border-radius:22px;overflow:hidden;
+  background:rgba(27,26,58,.82);border:1px solid rgba(255,255,255,.09);box-shadow:0 18px 50px rgba(0,0,0,.5);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.dock.show{transform:translate(-50%,0);opacity:1}
+.dock::before{content:"";position:absolute;inset:-40px;background:var(--art) center/cover;filter:blur(36px) saturate(1.5);opacity:.5;z-index:-1}
+.dock .thumb{width:58px;height:58px;border-radius:14px;overflow:hidden;background:var(--raised);flex:none}
+.dock .thumb img{width:100%;height:100%;object-fit:cover}
+.dock .info{flex:1;min-width:0}
+.dock .dname{font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dock .dsub{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);margin-top:3px;flex-wrap:wrap}
+.dock .live{display:flex;align-items:center;gap:6px;color:var(--live);font-weight:650}
+.dock .time{font-variant-numeric:tabular-nums;color:var(--text);font-weight:600;direction:ltr}
+.eq{display:inline-flex;gap:2px;align-items:flex-end;height:12px}
+.eq i{width:3px;height:3px;background:var(--live);border-radius:2px;animation:eq 1s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}
+@keyframes eq{0%,100%{height:3px}50%{height:12px}}
+
+/* settings panel */
+.scrim{position:fixed;inset:0;background:rgba(5,5,18,.55);opacity:0;pointer-events:none;transition:opacity .2s;z-index:15}
+.scrim.on{opacity:1;pointer-events:auto}
+.panel{position:fixed;top:0;bottom:0;inset-inline-end:0;width:min(420px,100%);background:var(--panel);border-inline-start:1px solid var(--line);
+  transform:translateX(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);overflow-y:auto;padding:22px 24px 40px;z-index:20}
+[dir=rtl] .panel{transform:translateX(-105%)}
+.panel.on{transform:none!important}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}
+.panel-head h2{font-size:20px;font-weight:700}
+.field{display:flex;flex-direction:column;gap:9px;margin-bottom:26px}
+.field>label,.field>h3{font-weight:650;font-size:14px}
+.hint{color:var(--muted);font-size:12.5px;line-height:1.5}
+.hint a{color:var(--accent-hi);text-decoration:none;cursor:pointer}
+.input{height:42px;width:100%;border-radius:12px;background:var(--night);border:1px solid var(--line);padding:0 12px;color:var(--text);font:inherit;outline:0}
+.input:focus{border-color:var(--accent)}
+.input.ltr{direction:ltr;text-align:left}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{padding:8px 14px;border-radius:10px;background:var(--night);border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:13px}
+.chips button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.row{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.switch{position:relative;width:46px;height:26px;border-radius:99px;background:var(--night);border:1px solid var(--line);flex:none}
+.switch::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:inset-inline-start .15s}
+.switch.on{background:var(--accent);border-color:var(--accent)}
+.switch.on::after{inset-inline-start:22px}
+.msg{font-size:12.5px;min-height:18px}
+.msg.error{color:var(--danger)} .msg.ok{color:var(--live)}
+
+/* toasts */
+#toasts{position:fixed;bottom:108px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column-reverse;gap:8px;align-items:center;z-index:30;pointer-events:none;width:min(560px,calc(100% - 32px))}
+.toast{background:var(--raised);border:1px solid var(--line);padding:10px 16px;border-radius:12px;font-size:13.5px;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:tin .2s ease-out;border-inline-start:4px solid var(--muted)}
+.toast.ok{border-inline-start-color:var(--live)}
+.toast.error{border-inline-start-color:var(--danger)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}}
+
+@media (max-width:820px){
+  .bar{flex-wrap:wrap;padding:12px 16px}.search{order:5;max-width:none;flex-basis:100%;margin:0}
+  main{padding:18px 16px 160px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <span class="logo"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="10" y1="11" y2="11"/><line x1="8" x2="8" y1="9" y2="13"/><line x1="15" x2="15.01" y1="12" y2="12"/><line x1="18" x2="18.01" y1="10" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/></svg></span>
+    <span>GamePresence</span>
+  </div>
+  <nav class="tabs">
+    <button data-tab="library" data-i18n="tab_library"></button>
+    <button data-tab="discover" data-i18n="tab_discover"></button>
+  </nav>
+  <label class="search">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="q" type="search" autocomplete="off" spellcheck="false" data-i18n-ph="search">
+  </label>
+  <button id="gear" class="icon-btn" data-i18n-label="settings">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+  </button>
+</header>
+
+<main id="scroller">
+  <div id="count" class="count"></div>
+  <div id="grid" class="grid tall"></div>
+  <div id="sentinel" style="height:1px"></div>
+  <div id="empty" class="empty" hidden></div>
+</main>
+
+<div id="dock" class="dock" hidden>
+  <div class="thumb"><img id="dockImg" alt=""></div>
+  <div class="info">
+    <div id="dockName" class="dname"></div>
+    <div class="dsub">
+      <span class="live"><span class="eq"><i></i><i></i><i></i></span><span data-i18n="live"></span></span>
+      <span id="dockTime" class="time">00:00:00</span>
+      <span id="dockMode"></span>
+      <span id="dockLeft"></span>
+    </div>
+  </div>
+  <button id="stopBtn" class="btn danger">
+    <span style="display:flex;align-items:center;gap:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="3"/></svg><span data-i18n="stop"></span></span>
+  </button>
+</div>
+
+<div id="scrim" class="scrim"></div>
+<aside id="panel" class="panel" aria-hidden="true">
+  <div class="panel-head">
+    <h2 data-i18n="settings"></h2>
+    <button id="closePanel" class="icon-btn" data-i18n-label="close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+
+  <section class="field">
+    <h3 data-i18n="set_steam"></h3>
+    <input id="steamKey" class="input ltr" type="password" autocomplete="off" spellcheck="false" data-i18n-ph="steam_key">
+    <input id="steamId" class="input ltr" type="text" autocomplete="off" spellcheck="false" data-i18n-ph="steam_id">
+    <p class="hint"><span data-i18n="steam_help"></span> <a id="keyLink" data-i18n="steam_link"></a></p>
+    <button id="steamBtn" class="btn" data-i18n="steam_btn"></button>
+    <div id="steamMsg" class="msg"></div>
+  </section>
+
+  <section class="field">
+    <h3 data-i18n="set_method"></h3>
+    <div class="chips" id="chMethod">
+      <button data-v="auto" data-i18n="m_auto"></button>
+      <button data-v="process" data-i18n="m_process"></button>
+      <button data-v="rpc">Rich Presence</button>
+    </div>
+    <p class="hint" data-i18n="method_help"></p>
+  </section>
+
+  <section class="field">
+    <h3 data-i18n="set_duration"></h3>
+    <div class="chips" id="chDuration">
+      <button data-v="0" data-i18n="d0"></button>
+      <button data-v="5" data-i18n="d5"></button>
+      <button data-v="15" data-i18n="d15"></button>
+      <button data-v="30" data-i18n="d30"></button>
+      <button data-v="60" data-i18n="d60"></button>
+      <button data-v="180" data-i18n="d180"></button>
+    </div>
+  </section>
+
+  <section class="field">
+    <h3>Rich Presence</h3>
+    <input id="details" class="input" type="text" maxlength="100" data-i18n-ph="details_ph">
+    <input id="state" class="input" type="text" maxlength="100" data-i18n-ph="state_ph">
+    <p class="hint" data-i18n="text_help"></p>
+  </section>
+
+  <section class="field" id="secMin">
+    <div class="row">
+      <div><h3 data-i18n="set_minimize"></h3><p class="hint" data-i18n="minimize_help"></p></div>
+      <button id="swMin" class="switch" role="switch" aria-checked="false" data-i18n-label="set_minimize"></button>
+    </div>
+  </section>
+
+  <section class="field">
+    <h3 data-i18n="set_lang"></h3>
+    <div class="chips" id="chLang">
+      <button data-v="ar">العربية</button>
+      <button data-v="en">English</button>
+    </div>
+  </section>
+</aside>
+
+<div id="toasts"></div>
+
+<script>
+(() => {
+'use strict';
+const BATCH = 40;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+const I18N = {
+ar: {
+  tab_library:'مكتبتي', tab_discover:'كل الألعاب', search:'ابحث عن لعبة', settings:'الإعدادات', close:'إغلاق',
+  count_all:'{n} لعبة', count_steam:'{n} لعبة من ستيم، مرتبة حسب ساعات اللعب', count_found:'{n} نتيجة',
+  unmatched:'و{u} لعبة غير معروفة لدى ديسكورد.', hours:'{h} ساعة',
+  tip_ok:'كشف حقيقي: تدخل في سجل النشاط', tip_rpc:'ما لها ملف تشغيل معروف، تظهر عبر Rich Presence',
+  live:'يعمل الآن', stop:'إيقاف', left_min:'متبقي {m} د', mode_process:'كشف حقيقي', mode_rpc:'Rich Presence',
+  empty_steam_t:'مكتبتك فاضية', empty_steam_b:'اربط حساب ستيم لتظهر ألعابك هنا، أو تصفّح كل الألعاب.',
+  btn_connect:'ربط ستيم', btn_browse:'تصفّح كل الألعاب', empty_search:'ما لقينا لعبة بهذا الاسم',
+  load_err_t:'تعذّر تحميل قائمة الألعاب', load_err_b:'تأكد من اتصال الإنترنت ثم أعد المحاولة.', retry:'إعادة المحاولة',
+  set_steam:'ستيم', steam_key:'مفتاح Steam API', steam_id:'SteamID64 أو الاسم المخصص',
+  steam_help:'لازم يكون ملفك عام، وخيار تفاصيل الألعاب على Public.', steam_link:'احصل على المفتاح',
+  steam_btn:'حفظ وتحديث المكتبة', steam_loading:'جاري التحميل…',
+  set_method:'طريقة التشغيل', m_auto:'تلقائي', m_process:'كشف حقيقي',
+  method_help:'التلقائي يستخدم الكشف الحقيقي إذا اللعبة لها ملف تشغيل معروف، وإلا يستخدم Rich Presence.',
+  set_duration:'مدة الجلسة', d0:'حتى أوقفها', d5:'5 دقائق', d15:'15 دقيقة', d30:'30 دقيقة', d60:'ساعة', d180:'3 ساعات',
+  details_ph:'التفاصيل، مثل: داخل مباراة', state_ph:'الحالة، مثل: المستوى 50', text_help:'يظهر النص فقط عند استخدام Rich Presence.',
+  set_minimize:'تصغير نافذة العملية', minimize_help:'تفتح نافذة صغيرة بالخلفية أثناء التشغيل.', set_lang:'اللغة',
+  t_starting:'جاري تشغيل {name}…', t_loaded:'تم تحميل {n} لعبة من ستيم',
+  running:'{name} شغّالة. انتظر 10 إلى 30 ثانية ليلتقطها ديسكورد.', rpc_running:'{name} تظهر عبر Rich Presence.',
+  rpc_fallback:'{name} تظهر عبر Rich Presence لأن ما لها ملف تشغيل معروف.',
+  stopped:'تم الإيقاف', finished:'انتهت الجلسة', proc_exited:'العملية الوهمية توقفت',
+  err_win_only:'الكشف الحقيقي يشتغل على ويندوز ولينكس فقط',
+  err_no_exe:'ديسكورد ما عنده ملف تشغيل معروف لهذه اللعبة. اختر تلقائي أو Rich Presence.',
+  err_no_discord:'تطبيق ديسكورد غير مفتوح. افتح النسخة الديسكتوب.', err_bad_id:'ديسكورد رفض معرّف هذه اللعبة',
+  err_lost:'انقطع الاتصال بديسكورد', err_steam_key:'مفتاح Steam API غير صحيح',
+  err_steam_vanity:'ما لقينا هذا الاسم في ستيم',
+  err_steam_private:'ما رجعت أي ألعاب. خلّ تفاصيل الألعاب في خصوصية ستيم على Public.',
+  err_steam_missing:'اكتب مفتاح Steam API وSteamID أولاً', err_net:'تعذّر الاتصال: {detail}', err_raw:'{detail}'
+},
+en: {
+  tab_library:'My library', tab_discover:'All games', search:'Search games', settings:'Settings', close:'Close',
+  count_all:'{n} games', count_steam:'{n} Steam games, sorted by playtime', count_found:'{n} results',
+  unmatched:'{u} more aren’t known to Discord.', hours:'{h} h played',
+  tip_ok:'Full detection: counts toward your activity history', tip_rpc:'No known executable, shown through Rich Presence',
+  live:'Live', stop:'Stop', left_min:'{m} min left', mode_process:'Full detection', mode_rpc:'Rich Presence',
+  empty_steam_t:'Your library is empty', empty_steam_b:'Connect your Steam account to see your games here, or browse every game.',
+  btn_connect:'Connect Steam', btn_browse:'Browse all games', empty_search:'No games match that name',
+  load_err_t:'Couldn’t load the game list', load_err_b:'Check your internet connection and try again.', retry:'Try again',
+  set_steam:'Steam', steam_key:'Steam API key', steam_id:'SteamID64 or vanity name',
+  steam_help:'Your profile must be public, with Game details set to Public.', steam_link:'Get a key',
+  steam_btn:'Save and refresh library', steam_loading:'Loading…',
+  set_method:'Method', m_auto:'Auto', m_process:'Full detection',
+  method_help:'Auto uses full detection when the game has a known executable, otherwise Rich Presence.',
+  set_duration:'Session length', d0:'Until I stop', d5:'5 minutes', d15:'15 minutes', d30:'30 minutes', d60:'1 hour', d180:'3 hours',
+  details_ph:'Details, e.g. In a match', state_ph:'State, e.g. Level 50', text_help:'This text only shows with Rich Presence.',
+  set_minimize:'Minimize helper window', minimize_help:'A small window stays in the background while a game runs.', set_lang:'Language',
+  t_starting:'Starting {name}…', t_loaded:'Loaded {n} Steam games',
+  running:'{name} is running. Give Discord 10 to 30 seconds to pick it up.', rpc_running:'{name} is showing through Rich Presence.',
+  rpc_fallback:'{name} is showing through Rich Presence because it has no known executable.',
+  stopped:'Stopped', finished:'Session finished', proc_exited:'The helper process stopped',
+  err_win_only:'Full detection only works on Windows and Linux',
+  err_no_exe:'Discord has no known executable for this game. Choose Auto or Rich Presence.',
+  err_no_discord:'Discord isn’t running. Open the desktop app.', err_bad_id:'Discord rejected this game’s ID',
+  err_lost:'Lost connection to Discord', err_steam_key:'Invalid Steam API key', err_steam_vanity:'That Steam name wasn’t found',
+  err_steam_private:'No games came back. Set Game details to Public in Steam privacy settings.',
+  err_steam_missing:'Enter your Steam API key and SteamID first', err_net:'Connection failed: {detail}', err_raw:'{detail}'
+}};
+
+const S = {
+  settings:{lang:'ar',method:'auto',duration:0,details:'',state:'',minimize:false,steam_key:'',steam_id:''},
+  catalog:[], steam:[], unmatched:0, tab:'discover', q:'', list:[], shown:0,
+  playing:null, pending:null, t0:0, endAt:null, mode:'', ready:false, pendingTimer:null
+};
+const api = () => window.pywebview && window.pywebview.api;
+
+function t(k, v){
+  const d = I18N[S.settings.lang] || I18N.ar;
+  let s = d[k] !== undefined ? d[k] : (I18N.en[k] !== undefined ? I18N.en[k] : k);
+  if (v) s = s.replace(/\{(\w+)\}/g, (m, n) => v[n] !== undefined ? v[n] : m);
+  return s;
+}
+const norm = s => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+const hue = s => { let h = 0; for (const c of s) h = (h * 31 + c.codePointAt(0)) % 360; return h; };
+const discordIcon = (g, s = 256) => g.icon ? `https://cdn.discordapp.com/app-icons/${g.id}/${g.icon}.png?size=${s}` : '';
+const steamCover = g => g.appid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/library_600x900.jpg` : '';
+const findGame = id => S.steam.find(g => g.id === id) || S.catalog.find(g => g.id === id);
+
+/* ---------- language / panel ---------- */
+function applyLang(){
+  const lang = S.settings.lang;
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  $$('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n));
+  $$('[data-i18n-ph]').forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  $$('[data-i18n-label]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nLabel)));
+  syncPanel();
+  if (S.ready){ applyFilter(); updateDockText(); }
+}
+function syncPanel(){
+  const s = S.settings;
+  $$('#chMethod button').forEach(b => b.classList.toggle('on', b.dataset.v === s.method));
+  $$('#chDuration button').forEach(b => b.classList.toggle('on', +b.dataset.v === +s.duration));
+  $$('#chLang button').forEach(b => b.classList.toggle('on', b.dataset.v === s.lang));
+  const sw = $('#swMin'); sw.classList.toggle('on', !!s.minimize); sw.setAttribute('aria-checked', !!s.minimize);
+  if (document.activeElement !== $('#steamKey')) $('#steamKey').value = s.steam_key || '';
+  if (document.activeElement !== $('#steamId')) $('#steamId').value = s.steam_id || '';
+  if (document.activeElement !== $('#details')) $('#details').value = s.details || '';
+  if (document.activeElement !== $('#state')) $('#state').value = s.state || '';
+}
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { try { api() && api().save_settings(S.settings); } catch (e) {} }, 300);
+}
+function openPanel(){ $('#panel').classList.add('on'); $('#scrim').classList.add('on'); $('#panel').setAttribute('aria-hidden', 'false'); }
+function closePanel(){ $('#panel').classList.remove('on'); $('#scrim').classList.remove('on'); $('#panel').setAttribute('aria-hidden', 'true'); }
+
+/* ---------- toasts ---------- */
+function toast(text, kind = 'idle', ms = 4200){
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind; el.textContent = text;
+  const box = $('#toasts'); box.appendChild(el);
+  while (box.children.length > 3) box.firstChild.remove();
+  setTimeout(() => el.remove(), kind === 'error' ? Math.max(ms, 7000) : ms);
+  return el;
+}
+function msg(code, detail){
+  const d = (detail && typeof detail === 'object') ? detail : {detail: detail};
+  const k = I18N[S.settings.lang][code] !== undefined || I18N.en[code] !== undefined ? code : null;
+  return k ? t(k, d) : (d.detail || code);
+}
+
+/* ---------- grid ---------- */
+function setSteam(games, unmatched){
+  S.steam = (games || []).map(g => ({...g, exe: !!g.exe, k: norm(g.name)}));
+  S.unmatched = unmatched || 0;
+}
+function syncTabs(){ $$('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab)); }
+
+function applyFilter(){
+  const q = norm(S.q), src = S.tab === 'library' ? S.steam : S.catalog;
+  S.list = q ? src.filter(g => g.k.includes(q)) : src;
+  const shape = S.tab === 'library' ? 'tall' : 'square';
+  const grid = $('#grid'), empty = $('#empty');
+  grid.className = 'grid ' + shape;
+  grid.innerHTML = ''; S.shown = 0;
+  $('#scroller').scrollTop = 0;
+
+  let c = '';
+  if (q) c = t('count_found', {n: S.list.length});
+  else if (S.tab === 'library' && S.list.length) c = t('count_steam', {n: S.list.length}) + (S.unmatched ? ' ' + t('unmatched', {u: S.unmatched}) : '');
+  else if (S.tab === 'discover') c = t('count_all', {n: S.list.length});
+  $('#count').textContent = c;
+
+  if (!S.list.length){
+    grid.hidden = true; empty.hidden = false; empty.innerHTML = '';
+    if (!q && S.tab === 'library') emptyState('empty_steam_t', 'empty_steam_b', [['btn_connect', openPanel, ''], ['btn_browse', () => setTab('discover'), 'ghost']]);
+    else emptyState('empty_search', null, []);
+    return;
+  }
+  grid.hidden = false; empty.hidden = true;
+  fill();
+}
+function emptyState(title, body, buttons){
+  const e = $('#empty');
+  const ico = document.createElement('div'); ico.className = 'ico';
+  ico.innerHTML = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>';
+  const h = document.createElement('h2'); h.textContent = t(title);
+  e.append(ico, h);
+  if (body){ const p = document.createElement('p'); p.textContent = t(body); e.append(p); }
+  if (buttons.length){
+    const a = document.createElement('div'); a.className = 'actions';
+    buttons.forEach(([k, fn, cls]) => { const b = document.createElement('button'); b.className = 'btn ' + cls; b.textContent = t(k); b.onclick = fn; a.append(b); });
+    e.append(a);
+  }
+}
+function fill(){
+  const s = $('#sentinel');
+  while (S.shown < S.list.length && s.getBoundingClientRect().top < innerHeight + 900) appendMore();
+}
+function appendMore(){
+  const shape = S.tab === 'library' ? 'tall' : 'square';
+  const frag = document.createDocumentFragment();
+  const end = Math.min(S.shown + BATCH, S.list.length);
+  for (let i = S.shown; i < end; i++) frag.appendChild(cardEl(S.list[i], shape));
+  $('#grid').appendChild(frag);
+  S.shown = end;
+}
+function cardEl(g, shape){
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'game'; b.dataset.id = g.id; b.setAttribute('aria-label', g.name);
+  if (S.playing === g.id) b.classList.add('live');
+  if (S.pending === g.id) b.classList.add('busy');
+
+  const art = document.createElement('div'); art.className = 'art';
+  const urls = shape === 'tall' ? [steamCover(g), discordIcon(g)] : [discordIcon(g)];
+  mount(art, g, urls.filter(Boolean));
+
+  const badge = document.createElement('span');
+  if (g.exe){ badge.className = 'badge ok'; badge.title = t('tip_ok'); badge.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>'; }
+  else { badge.className = 'badge'; badge.title = t('tip_rpc'); badge.textContent = 'RPC'; }
+  const live = document.createElement('span'); live.className = 'tag-live'; live.textContent = t('live');
+  const play = document.createElement('span'); play.className = 'play';
+  play.innerHTML = '<svg class="i-play" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><svg class="i-stop" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>';
+  art.append(play, badge, live);
+
+  const name = document.createElement('div'); name.className = 'name'; name.textContent = g.name;
+  const sub = document.createElement('div'); sub.className = 'sub';
+  if (g.hours) sub.textContent = t('hours', {h: g.hours.toLocaleString()});
+  b.append(art, name, sub);
+  b.onclick = () => toggle(g);
+  return b;
+}
+function mount(el, g, urls){
+  if (!urls.length){ mono(el, g); return; }
+  const img = new Image(); img.alt = ''; img.decoding = 'async'; img.loading = 'lazy'; img.draggable = false;
+  let i = 0;
+  img.onerror = () => {
+    i++;
+    if (i < urls.length){ el.classList.add('fallback'); img.src = urls[i]; }
+    else { img.remove(); el.classList.remove('fallback'); mono(el, g); }
+  };
+  img.src = urls[0]; el.appendChild(img);
+}
+function mono(el, g){
+  el.classList.add('mono'); el.style.setProperty('--h', hue(g.name));
+  const sp = document.createElement('span'); sp.textContent = ([...g.name][0] || '?').toUpperCase(); el.appendChild(sp);
+}
+function renderSkeleton(){
+  const grid = $('#grid'); grid.className = 'grid tall'; grid.innerHTML = '';
+  for (let i = 0; i < 18; i++){
+    const d = document.createElement('div'); d.className = 'game skel';
+    d.innerHTML = '<div class="art"></div><div class="name" style="margin-top:12px"></div>';
+    grid.appendChild(d);
+  }
+}
+function setTab(tab){ S.tab = tab; syncTabs(); closePanel(); applyFilter(); }
+
+/* ---------- play / stop ---------- */
+function opts(){
+  const s = S.settings;
+  return {method: s.method, duration: +s.duration, details: s.details, state: s.state, minimize: !!s.minimize};
+}
+function setPending(id){
+  S.pending = id; clearTimeout(S.pendingTimer);
+  if (id) S.pendingTimer = setTimeout(() => { S.pending = null; markCards(); }, 20000);
+  markCards();
+}
+async function toggle(g){
+  if (S.playing === g.id){ try { await api().stop(); } catch (e) {} return; }
+  if (S.pending) return;
+  setPending(g.id);
+  S.startToast = toast(t('t_starting', {name: g.name}), 'idle', 15000);
+  try {
+    const r = await api().start(g.id, opts());
+    if (r && r.ok === false){ setPending(null); clearStartToast(); toast(msg(r.code || 'err_raw', r.detail), 'error'); }
+  } catch (e){ setPending(null); toast(String(e), 'error'); }
+}
+function clearStartToast(){ if (S.startToast){ S.startToast.remove(); S.startToast = null; } }
+function markCards(){
+  $$('.game[data-id]').forEach(b => {
+    b.classList.toggle('live', b.dataset.id === S.playing);
+    b.classList.toggle('busy', b.dataset.id === S.pending);
+  });
+}
+
+/* ---------- dock ---------- */
+function showDock(g){
+  const url = discordIcon(g) || steamCover(g);
+  const img = $('#dockImg');
+  img.onerror = () => { img.removeAttribute('src'); };
+  if (url) img.src = url; else img.removeAttribute('src');
+  $('#dock').style.setProperty('--art', url ? `url("${url}")` : 'none');
+  $('#dockName').textContent = g.name;
+  updateDockText(); tick();
+  const d = $('#dock'); d.hidden = false;
+  requestAnimationFrame(() => requestAnimationFrame(() => d.classList.add('show')));
+}
+function hideDock(){
+  const d = $('#dock'); d.classList.remove('show');
+  setTimeout(() => { if (!S.playing) d.hidden = true; }, 320);
+}
+function updateDockText(){
+  $('#dockMode').textContent = S.mode ? t(S.mode === 'process' ? 'mode_process' : 'mode_rpc') : '';
+}
+function tick(){
+  if (!S.playing) return;
+  const s = Math.max(0, Math.floor((Date.now() - S.t0) / 1000));
+  const p = n => String(n).padStart(2, '0');
+  $('#dockTime').textContent = `${p(Math.floor(s / 3600))}:${p(Math.floor(s % 3600 / 60))}:${p(s % 60)}`;
+  if (S.endAt){
+    const left = Math.max(0, Math.ceil((S.endAt - Date.now()) / 60000));
+    $('#dockLeft').textContent = t('left_min', {m: left});
+  } else $('#dockLeft').textContent = '';
+}
+setInterval(tick, 1000);
+
+/* ---------- events from Python ---------- */
+window.onEvent = e => {
+  if (e.type === 'started'){
+    S.playing = e.game.id; S.t0 = Date.now(); S.endAt = e.end_at ? e.end_at * 1000 : null; S.mode = e.mode;
+    setPending(null); clearStartToast(); markCards();
+    showDock(findGame(S.playing) || {id: e.game.id, name: e.game.name, icon: ''});
+  } else if (e.type === 'stopped'){
+    S.playing = null; setPending(null); markCards(); hideDock();
+  } else if (e.type === 'status'){
+    if (e.kind === 'error'){ setPending(null); clearStartToast(); }
+    let code = e.code, d = e.detail;
+    if (code === 'rpc_running' && d && d.fallback) code = 'rpc_fallback';
+    toast(msg(code, d), e.kind === 'error' ? 'error' : e.kind === 'ok' ? 'ok' : 'idle');
+  }
+};
+
+/* ---------- steam ---------- */
+function setSteamMsg(text, kind){ const m = $('#steamMsg'); m.textContent = text; m.className = 'msg ' + (kind || ''); }
+async function connectSteam(silent){
+  const key = (S.settings.steam_key || '').trim(), id = (S.settings.steam_id || '').trim();
+  if (!key || !id){ if (!silent) setSteamMsg(t('err_steam_missing'), 'error'); return; }
+  const btn = $('#steamBtn');
+  if (!silent){ btn.disabled = true; btn.textContent = t('steam_loading'); setSteamMsg(''); }
+  let r;
+  try { r = await api().load_steam(key, id); } catch (e) { r = {ok: false, code: 'err_net', detail: String(e)}; }
+  if (!silent){ btn.disabled = false; btn.textContent = t('steam_btn'); }
+  if (r.ok){
+    setSteam(r.games, r.unmatched);
+    if (!silent){ setSteamMsg(t('t_loaded', {n: r.games.length}), 'ok'); toast(t('t_loaded', {n: r.games.length}), 'ok'); S.tab = 'library'; syncTabs(); closePanel(); }
+    applyFilter();
+  } else if (!silent){ setSteamMsg(msg(r.code, r.detail), 'error'); }
+}
+
+/* ---------- boot ---------- */
+function showLoadError(){
+  const grid = $('#grid'), e = $('#empty');
+  grid.hidden = true; e.hidden = false; e.innerHTML = ''; $('#count').textContent = '';
+  emptyState('load_err_t', 'load_err_b', [['retry', () => { e.hidden = true; grid.hidden = false; init(); }, '']]);
+}
+async function init(){
+  renderSkeleton(); applyLang();
+  let b;
+  try { b = await api().boot(); } catch (e) { b = {error: String(e)}; }
+  if (b.settings) Object.assign(S.settings, b.settings);
+  $('#secMin').hidden = !!b.platform && b.platform !== 'win32';
+  applyLang();
+  if (!b.catalog || !b.catalog.length){ showLoadError(); return; }
+  S.catalog = b.catalog.map(a => ({id: a[0], name: a[1], icon: a[2], exe: !!a[3], k: norm(a[1])}));
+  setSteam(b.steam && b.steam.games, b.steam && b.steam.unmatched);
+  S.tab = S.steam.length ? 'library' : 'discover';
+  S.ready = true; syncTabs(); applyFilter();
+  if (S.settings.steam_key && S.settings.steam_id) connectSteam(true);
+}
+
+/* ---------- wiring ---------- */
+$$('.tabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
+$('#gear').onclick = openPanel;
+$('#closePanel').onclick = closePanel;
+$('#scrim').onclick = closePanel;
+$('#stopBtn').onclick = async () => { try { await api().stop(); } catch (e) {} };
+$('#steamBtn').onclick = () => connectSteam(false);
+$('#keyLink').onclick = () => { try { api().open_url('https://steamcommunity.com/dev/apikey'); } catch (e) {} };
+$('#scroller').addEventListener('scroll', fill, {passive: true});
+window.addEventListener('resize', () => S.ready && fill());
+let qTimer = null;
+$('#q').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { S.q = e.target.value; applyFilter(); }, 120); });
+$$('#chMethod button').forEach(b => b.onclick = () => { S.settings.method = b.dataset.v; syncPanel(); save(); });
+$$('#chDuration button').forEach(b => b.onclick = () => { S.settings.duration = +b.dataset.v; syncPanel(); save(); });
+$$('#chLang button').forEach(b => b.onclick = () => { S.settings.lang = b.dataset.v; applyLang(); save(); });
+$('#swMin').onclick = () => { S.settings.minimize = !S.settings.minimize; syncPanel(); save(); };
+[['#steamKey', 'steam_key'], ['#steamId', 'steam_id'], ['#details', 'details'], ['#state', 'state']].forEach(([sel, key]) =>
+  $(sel).addEventListener('input', e => { S.settings[key] = e.target.value; save(); }));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closePanel();
+  if ((e.key === '/' || (e.ctrlKey && e.key.toLowerCase() === 'k')) && document.activeElement.tagName !== 'INPUT'){ e.preventDefault(); $('#q').focus(); }
+});
+
+if (window.pywebview && window.pywebview.api) init();
+else window.addEventListener('pywebviewready', init);
+})();
+</script>
+</body>
+</html>
