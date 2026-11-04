@@ -1,6 +1,6 @@
 # GamePresence
 
-[![CI](https://github.com/nciiz/game-presence/actions/workflows/ci.yml/badge.svg)](https://github.com/nciiz/game-presence/actions/workflows/ci.yml) ![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-5865F2) [![License: MIT](https://img.shields.io/badge/license-MIT-2fd27a)](https://github.com/nciiz/game-presence/blob/main/LICENSE)
+(https://github.com/nciiz/game-presence/actions/workflows/ci.yml/badge.svg)](https://github.com/nciiz/game-presence/actions/workflows/ci.yml) ![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-5865F2) [![License: MIT](https://img.shields.io/badge/license-MIT-2fd27a)](https://github.com/nciiz/game-presence/blob/main/LICENSE)
 
 **Pick a game, and show it as your Discord activity.** Runs on Windows and Linux.
 
